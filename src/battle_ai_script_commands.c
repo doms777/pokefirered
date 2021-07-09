@@ -259,73 +259,88 @@ static const u16 sDiscouragedPowerfulMoveEffects[] =
     0xFFFF
 };
 
+void __attribute__((long_call)) RecordLastUsedMoveByTarget(void);
+
 void BattleAI_HandleItemUseBeforeAISetup(void)
 {
-    s32 i;
-    u8 *data = (u8 *)BATTLE_HISTORY;
+	u32 i;
+	u8* data = (u8*)BATTLE_HISTORY;
 
-    for (i = 0; i < sizeof(struct BattleHistory); i++)
-        data[i] = 0;
+	for (i = 0; i < sizeof(struct BattleHistory); i++)
+		data[i] = 0;
 
-    // Items are allowed to use in ONLY trainer battles.
-    if ((gBattleTypeFlags & BATTLE_TYPE_TRAINER)
-        && (gTrainerBattleOpponent_A != SECRET_BASE_OPPONENT)
-        && !(gBattleTypeFlags & (BATTLE_TYPE_TRAINER_TOWER | BATTLE_TYPE_EREADER_TRAINER | BATTLE_TYPE_BATTLE_TOWER | BATTLE_TYPE_SAFARI | BATTLE_TYPE_LINK))
-        )
-    {
-        for (i = 0; i < MAX_TRAINER_ITEMS; i++)
-        {
-            if (gTrainers[gTrainerBattleOpponent_A].items[i] != 0)
-            {
-                BATTLE_HISTORY->trainerItems[BATTLE_HISTORY->itemsNo] = gTrainers[gTrainerBattleOpponent_A].items[i];
-                BATTLE_HISTORY->itemsNo++;
-            }
-        }
-    }
+	// Items are allowed to use in ONLY trainer battles.
+	if ((gBattleTypeFlags & BATTLE_TYPE_TRAINER)
+		&& !(gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_SAFARI | BATTLE_TYPE_FRONTIER | BATTLE_TYPE_TWO_OPPONENTS | BATTLE_TYPE_INGAME_PARTNER | BATTLE_TYPE_EREADER_TRAINER))
+		&& gTrainerBattleOpponent_A != SECRET_BASE_OPPONENT
+		&& !IsFrontierTrainerId(gTrainerBattleOpponent_A))
+	{
+		for (i = 0; i < 4; i++)
+		{
+			if (gTrainers[gTrainerBattleOpponent_A].items[i] != 0)
+			{
+				BATTLE_HISTORY->trainerItems[BATTLE_HISTORY->itemsNo] = gTrainers[gTrainerBattleOpponent_A].items[i];
+				BATTLE_HISTORY->itemsNo++;
+			}
+		}
+	}
 
-    BattleAI_SetupAIData();
+	BattleAI_SetupAIData(0xF);
 }
 
-void BattleAI_SetupAIData(void)
+void BattleAI_SetupAIData(u8 defaultScoreMoves)
 {
-    s32 i;
-    u8 *data = (u8 *)AI_THINKING_STRUCT;
-    u8 moveLimitations;
+	u32 i;
+	u8* data = (u8*) AI_THINKING_STRUCT;
+	u8 moveLimitations;
 
-    // Clear AI data.
-    for (i = 0; i < sizeof(struct AI_ThinkingStruct); i++)
-        data[i] = 0;
+	// Clear AI data.
+	for (i = 0; i < sizeof(struct AI_ThinkingStruct); ++i)
+		data[i] = 0;
 
-    for (i = 0; i < MAX_MON_MOVES; i++)
-        AI_THINKING_STRUCT->score[i] = 100;
+	// Conditional score reset, unlike Ruby.
+	for (i = 0; i < MAX_MON_MOVES; ++i)
+	{
+		if (defaultScoreMoves & 1)
+			AI_THINKING_STRUCT->score[i] = 100;
+		else
+			AI_THINKING_STRUCT->score[i] = 0;
 
-    moveLimitations = CheckMoveLimitations(gActiveBattler, 0, 0xFF);
+		defaultScoreMoves >>= 1;
+	}
 
-    // Ignore moves that aren't possible to use.
-    for (i = 0; i < MAX_MON_MOVES; i++)
-    {
-        if (gBitTable[i] & moveLimitations)
-            AI_THINKING_STRUCT->score[i] = 0;
+	gBattleResources->AIScriptsStack->size = 0;
+	gBankAttacker = gActiveBattler;
 
-        AI_THINKING_STRUCT->simulatedRNG[i] = 100 - (Random() % 16);
-    }
+	// Decide a random target battlerId in doubles.
+	if (IS_DOUBLE_BATTLE)
+	{
+		gBankTarget = (Random() & BIT_FLANK) + (SIDE(gActiveBattler) ^ BIT_SIDE);
+		if (gAbsentBattlerFlags & gBitTable[gBankTarget])
+			gBankTarget ^= BIT_FLANK;
+	}
+	// There's only one choice in single battles.
+	else
+		gBankTarget = gBankAttacker ^ BIT_SIDE;
 
-    gBattleResources->AI_ScriptsStack->size = 0;
-    gBattlerAttacker = gActiveBattler;
+	moveLimitations = CheckMoveLimitations(gActiveBattler, 0, AdjustMoveLimitationFlagsForAI(gBankAttacker, gBankTarget));
 
-    // Decide a random target battlerId in doubles.
-    if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE)
-    {
-        gBattlerTarget = (Random() & BIT_FLANK);
+	// Ignore moves that aren't possible to use.
+	for (i = 0; i < MAX_MON_MOVES; i++)
+	{
+		if (gBitTable[i] & moveLimitations)
+			AI_THINKING_STRUCT->score[i] = 0;
 
-        if (gAbsentBattlerFlags & gBitTable[gBattlerTarget])
-            gBattlerTarget ^= BIT_FLANK;
-    }
-    // There's only one choice in single battles.
-    else
-    {
-        gBattlerTarget = gBattlerAttacker ^ BIT_SIDE;
-    }
+		AI_THINKING_STRUCT->simulatedRNG[i] = 100 - umodsi(Random(), 16);
+	}
+
+	// Choose proper trainer ai scripts.
+	AI_THINKING_STRUCT->aiFlags = GetAIFlags();
+
+	//if (IS_DOUBLE_BATTLE)
+		//AI_THINKING_STRUCT->aiFlags |= AI_SCRIPT_DOUBLE_BATTLE; // act smart in doubles and don't attack your partner
+}
+
 
     // Choose proper trainer ai scripts.
     // Fire Red, why all the returns?!?
