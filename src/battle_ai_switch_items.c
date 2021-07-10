@@ -368,7 +368,7 @@ static bool8 ShouldSwitchIfOnlyBadMovesLeft(void)
 	if (gNewBS->ai.switchingCooldown[gActiveBattler]) //Just switched in
 		return FALSE;
 
-	if (IS_DOUBLE_BATTLE)
+	if (BATTLE_TYPE_DOUBLE)
 	{
 		if ((!BATTLER_ALIVE(foe1) || OnlyBadMovesLeftInMoveset(gActiveBattler, foe1))
 		&&  (!BATTLER_ALIVE(foe2) || OnlyBadMovesLeftInMoveset(gActiveBattler, foe2)))
