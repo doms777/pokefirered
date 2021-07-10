@@ -313,6 +313,44 @@ static bool8 FindMonWithFlagsAndSuperEffective(u8 flags, u8 moduloPercent)
     return FALSE;
 }
 
+static void CalculateAIPredictions(void)
+{
+	if (!gNewBS->calculatedAIPredictions) //Only calculate these things once per turn
+	{
+		//mgba_printf(MGBA_LOG_INFO, "Calculating strongest moves...");
+		UpdateStrongestMoves();
+		//mgba_printf(MGBA_LOG_WARN, "Calculating doubles killing moves...");
+		UpdateBestDoublesKillingMoves(); //Takes long time
+		//mgba_printf(MGBA_LOG_INFO, "Predicting moves..");
+		PredictMovesForBanks(); //Takes long time
+		//mgba_printf(MGBA_LOG_WARN, "Calculating Dynamax mon...");
+		RunCalcShouldAIDynamax(); //Allows move predictions to change outcome
+		//mgba_printf(MGBA_LOG_INFO, "Calculating switching...");
+
+		gNewBS->calculatedAIPredictions = TRUE;
+
+		u8 backupBattler = gActiveBattler;
+		for (int i = 0; i < gBattlersCount; ++i)
+		{
+			if (GetBattlerPosition(i) == B_POSITION_PLAYER_LEFT && !(gBattleTypeFlags & BATTLE_TYPE_MOCK_BATTLE))
+				continue; //Only calculate for player if player not in control
+
+			if (GetBattlerPosition(i) == B_POSITION_PLAYER_RIGHT && !IsTagBattle())
+				continue; //Only calculate for player if player not in control
+
+			if (gNewBS->ai.calculatedAISwitchings[i] && BATTLER_ALIVE(i)) //So Multi Battles still work properly
+			{
+				ResetBestMonToSwitchInto(i);
+				gNewBS->ai.calculatedAISwitchings[gActiveBattler] = FALSE;
+
+				if (!BankSideHasTwoTrainers(gActiveBattler))
+					gNewBS->ai.calculatedAISwitchings[PARTNER(gActiveBattler)] = FALSE;
+			}
+		}
+		gActiveBattler = backupBattler;
+	}
+}
+
 static bool8 ShouldSwitch(void)
 {
     u8 battlerIn1, battlerIn2;
