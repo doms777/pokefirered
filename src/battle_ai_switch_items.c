@@ -10,6 +10,9 @@
 #include "constants/moves.h"
 #include "constants/pokemon.h"
 
+
+gNewBS = 0x203E038;
+
 extern struct BattlePokemon gBattleMons[MAX_BATTLERS_COUNT];
 
 struct BattleHistory //0x20003D0
