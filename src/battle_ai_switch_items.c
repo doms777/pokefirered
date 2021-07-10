@@ -13,6 +13,7 @@
 static bool8 HasSuperEffectiveMoveAgainstOpponents(bool8 noRng);
 static bool8 FindMonWithFlagsAndSuperEffective(u8 flags, u8 moduloPercent);
 static bool8 ShouldUseItem(void);
+static bool8 ShouldSwitchIfOnlyBadMovesLeft(void);
 
 static bool8 ShouldSwitchIfPerishSong(void)
 {
@@ -344,6 +345,7 @@ static bool8 ShouldSwitch(void)
     if (ShouldSwitchIfPerishSong()
      || ShouldSwitchIfWonderGuard()
      || FindMonThatAbsorbsOpponentsMove()
+     || ShouldSwitchIfOnlyBadMovesLeft()
      || ShouldSwitchIfNaturalCure())
         return TRUE;
     if (HasSuperEffectiveMoveAgainstOpponents(FALSE)
@@ -354,6 +356,50 @@ static bool8 ShouldSwitch(void)
         return TRUE;
     return FALSE;
 }
+
+
+
+static bool8 ShouldSwitchIfOnlyBadMovesLeft(void)
+{
+	u8 battlerIn1, battlerIn2;
+	u8 foe1, foe2;
+	LoadBattlersAndFoes(&battlerIn1, &battlerIn2, &foe1, &foe2);
+	
+	if (gNewBS->ai.switchingCooldown[gActiveBattler]) //Just switched in
+		return FALSE;
+
+	if (IS_DOUBLE_BATTLE)
+	{
+		if ((!BATTLER_ALIVE(foe1) || OnlyBadMovesLeftInMoveset(gActiveBattler, foe1))
+		&&  (!BATTLER_ALIVE(foe2) || OnlyBadMovesLeftInMoveset(gActiveBattler, foe2)))
+		{
+			gBattleStruct->switchoutIndex[SIDE(gActiveBattler)] = PARTY_SIZE;
+			EmitTwoReturnValues(1, ACTION_SWITCH, 0);
+			return TRUE;
+		}
+	}
+	else
+	{
+		if (OnlyBadMovesLeftInMoveset(gActiveBattler, foe1))
+		{
+			u8 firstId, lastId, bestMon;
+			struct Pokemon *party;
+			party = LoadPartyRange(gActiveBattler, &firstId, &lastId);
+			bestMon = GetMostSuitableMonToSwitchInto();
+
+			if (PredictedMoveWontDoTooMuchToMon(gActiveBattler, &party[bestMon], foe1))
+			{
+				gBattleStruct->switchoutIndex[SIDE(gActiveBattler)] = PARTY_SIZE;
+				EmitTwoReturnValues(1, ACTION_SWITCH, 0);
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+
 
 void AI_TrySwitchOrUseItem(void)
 {
