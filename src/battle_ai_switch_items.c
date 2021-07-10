@@ -10,6 +10,8 @@
 #include "constants/moves.h"
 #include "constants/pokemon.h"
 
+#define SAVED_CONSUMED_ITEMS(bank) gNewBS->SavedConsumedItems[gBattlerPartyIndexes[bank]]
+
 static bool8 HasSuperEffectiveMoveAgainstOpponents(bool8 noRng);
 static bool8 FindMonWithFlagsAndSuperEffective(u8 flags, u8 moduloPercent);
 static bool8 ShouldUseItem(void);
