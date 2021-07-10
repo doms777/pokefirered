@@ -27,6 +27,7 @@ static bool8 HasSuperEffectiveMoveAgainstOpponents(bool8 noRng);
 static bool8 FindMonWithFlagsAndSuperEffective(u8 flags, u8 moduloPercent);
 static bool8 ShouldUseItem(void);
 static bool8 ShouldSwitchIfOnlyBadMovesLeft(void);
+static void CalculateAIPredictions(void);
 
 static bool8 ShouldSwitchIfPerishSong(void)
 {
